@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JARVIS-1 Cross-Validation Engine v3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root{--bg-deep:#0a0e1a;--bg-panel:#111827;--bg-card:#1a2236;--bg-card-hover:#1f2a42;--border-dim:#2a3550;--border-accent:#3b82f6;--text-primary:#e8ecf4;--text-secondary:#8899b4;--text-muted:#5a6b85;--accent-blue:#3b82f6;--accent-cyan:#06b6d4;--accent-green:#10b981;--accent-amber:#f59e0b;--accent-red:#ef4444;--accent-purple:#8b5cf6;--radius-sm:6px;--radius-md:10px;--radius-lg:16px;--radius-xl:20px;--font-mono:'JetBrains Mono','Consolas',monospace;--font-sans:'Noto Sans KR',-apple-system,sans-serif}
+*{margin:0;padding:0;box-sizing:border-box}body{font-family:var(--font-sans);background:var(--bg-deep);color:var(--text-primary);min-height:100vh;line-height:1.6}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(circle at 20% 20%,rgba(59,130,246,.04) 0%,transparent 50%),radial-gradient(circle at 80% 80%,rgba(139,92,246,.04) 0%,transparent 50%);pointer-events:none;z-index:0}
+.app{position:relative;z-index:1;max-width:1400px;margin:0 auto;padding:20px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);margin-bottom:20px}
+.header-left{display:flex;align-items:center;gap:16px}.header-icon{width:48px;height:48px;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 4px 16px rgba(59,130,246,.3)}
+.header-title{font-size:1.5em;font-weight:900}.header-title span{background:linear-gradient(135deg,var(--accent-blue),var(--accent-cyan));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header-sub{font-size:.8em;color:var(--text-muted);margin-top:2px}.header-right{display:flex;gap:8px;align-items:center}
+.status-dot{width:10px;height:10px;border-radius:50%;background:var(--accent-green);box-shadow:0 0 8px rgba(16,185,129,.5);animation:pulse 2s infinite}.status-text{font-size:.8em;color:var(--text-secondary);font-family:var(--font-mono)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.config-bar{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;padding:16px 20px;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-lg);margin-bottom:20px}
+.config-group{display:flex;flex-direction:column;gap:4px}.config-label{font-size:.72em;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px}
+.config-input{padding:8px 12px;background:var(--bg-card);border:1px solid var(--border-dim);border-radius:var(--radius-sm);color:var(--text-primary);font-family:var(--font-mono);font-size:.85em}.config-input:focus{outline:none;border-color:var(--accent-blue)}
+.btn-test{align-self:end;padding:8px 16px;background:var(--bg-card);border:1px solid var(--border-dim);color:var(--text-secondary);border-radius:var(--radius-sm);cursor:pointer;font-size:.82em;font-weight:600}.btn-test:hover{border-color:var(--accent-green);color:var(--accent-green)}
+.input-section{background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);padding:24px;margin-bottom:20px}
+.section-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}.section-tag{padding:4px 10px;border-radius:20px;font-size:.7em;font-weight:700;text-transform:uppercase}.tag-input{background:rgba(59,130,246,.15);color:var(--accent-blue)}.section-title{font-size:1.05em;font-weight:700}
+.form-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.form-field{display:flex;flex-direction:column;gap:4px}.form-field.span-2{grid-column:span 2}.form-field.span-4{grid-column:span 4}
+.field-label{font-size:.78em;font-weight:600;color:var(--text-secondary)}.field-input,.field-select,.field-textarea{padding:10px 14px;background:var(--bg-card);border:1px solid var(--border-dim);border-radius:var(--radius-md);color:var(--text-primary);font-family:var(--font-sans);font-size:.92em}
+.field-input:focus,.field-select:focus,.field-textarea:focus{outline:none;border-color:var(--accent-blue);box-shadow:0 0 0 3px rgba(59,130,246,.1)}.field-textarea{min-height:110px;resize:vertical;line-height:1.7}.field-select{cursor:pointer}.field-select option{background:var(--bg-card)}
+.context-section{background:var(--bg-card);border:1px solid var(--border-dim);border-radius:var(--radius-md);padding:16px;margin-top:12px}.context-header{display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none}.context-header h4{font-size:.88em;color:var(--text-secondary)}.context-toggle{font-size:.8em;color:var(--text-muted)}.context-body{display:none;margin-top:12px}.context-body.open{display:block}
+.module-pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.module-pill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:20px;font-size:.75em;color:var(--accent-blue);cursor:pointer}.module-pill.active{background:rgba(59,130,246,.2);border-color:var(--accent-blue)}
+.action-bar{display:flex;gap:10px;margin-top:20px}.btn{padding:12px 24px;border:none;border-radius:var(--radius-md);font-family:var(--font-sans);font-size:.92em;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:8px}.btn:hover{transform:translateY(-1px)}
+.btn-primary{flex:2;background:linear-gradient(135deg,var(--accent-blue),var(--accent-purple));color:#fff;box-shadow:0 4px 16px rgba(59,130,246,.3)}.btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-secondary{flex:1;background:var(--bg-card);border:1px solid var(--border-dim);color:var(--text-secondary)}.btn-secondary:hover{border-color:var(--text-secondary);color:var(--text-primary)}
+.loading-section{display:none;background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);padding:32px;margin-bottom:20px;text-align:center}.loading-section.active{display:block}.loading-title{font-size:1.1em;font-weight:700;margin-bottom:20px}
+.ai-progress{display:flex;justify-content:center;gap:24px;margin-bottom:24px}.ai-slot{display:flex;flex-direction:column;align-items:center;gap:8px;padding:16px 20px;background:var(--bg-card);border:1px solid var(--border-dim);border-radius:var(--radius-lg);min-width:140px}.ai-slot.running{border-color:var(--accent-amber);box-shadow:0 0 20px rgba(245,158,11,.15)}.ai-slot.done{border-color:var(--accent-green);box-shadow:0 0 20px rgba(16,185,129,.15)}
+.ai-name{font-size:.85em;font-weight:700}.ai-name.claude{color:#d97706}.ai-name.gpt{color:#10b981}.ai-name.perplexity{color:#3b82f6}.ai-status{font-size:.75em;color:var(--text-muted);font-family:var(--font-mono)}.ai-icon-area{width:24px;height:24px;display:flex;align-items:center;justify-content:center}
+.spinner{width:24px;height:24px;border:3px solid var(--border-dim);border-top-color:var(--accent-blue);border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.progress-bar-container{background:var(--bg-card);border-radius:20px;height:6px;overflow:hidden;max-width:400px;margin:0 auto}.progress-bar{height:100%;background:linear-gradient(90deg,var(--accent-blue),var(--accent-purple));border-radius:20px;transition:width .5s;width:0%}.loading-timer{font-size:.8em;color:var(--text-muted);font-family:var(--font-mono);margin-top:12px}
+.results-section{display:none;margin-bottom:20px}.results-section.active{display:block}
+.consensus-banner{background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);padding:24px;margin-bottom:16px;position:relative;overflow:hidden}.consensus-banner::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--accent-green),var(--accent-blue),var(--accent-purple))}
+.consensus-row{display:flex;align-items:center;gap:20px}.consensus-score{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.8em;font-weight:900;font-family:var(--font-mono);flex-shrink:0}
+.score-high{background:rgba(16,185,129,.15);color:var(--accent-green);border:2px solid var(--accent-green)}.score-mid{background:rgba(245,158,11,.15);color:var(--accent-amber);border:2px solid var(--accent-amber)}.score-low{background:rgba(239,68,68,.15);color:var(--accent-red);border:2px solid var(--accent-red)}
+.consensus-details{flex:1}.consensus-label{font-size:.75em;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:600}.consensus-text{font-size:1em;font-weight:600;margin:4px 0}.consensus-summary{font-size:.88em;color:var(--text-secondary);line-height:1.7}.consensus-meta{display:flex;gap:16px;margin-top:8px;flex-wrap:wrap}
+.meta-tag{font-size:.75em;padding:3px 8px;border-radius:4px;font-family:var(--font-mono)}.meta-tag.agree{background:rgba(16,185,129,.1);color:var(--accent-green)}.meta-tag.partial{background:rgba(245,158,11,.1);color:var(--accent-amber)}.meta-tag.disagree{background:rgba(239,68,68,.1);color:var(--accent-red)}
+.unified-card{background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);padding:28px;margin-bottom:16px;position:relative;overflow:hidden}.unified-card::before{content:'';position:absolute;top:0;left:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--accent-blue),var(--accent-cyan),var(--accent-green))}
+.unified-header{display:flex;align-items:center;gap:10px;margin-bottom:16px}.unified-badge{padding:4px 12px;border-radius:20px;font-size:.72em;font-weight:700;background:linear-gradient(135deg,rgba(59,130,246,.2),rgba(6,182,212,.2));color:var(--accent-cyan);border:1px solid rgba(6,182,212,.3)}.unified-title{font-size:1.1em;font-weight:800}
+.unified-body{font-size:.95em;line-height:2;color:var(--text-primary);padding-left:12px}.unified-body p{margin-bottom:12px}
+
+/* === 새로운 Key Findings 3-그룹 스타일 === */
+.findings-container{margin-top:20px}
+.findings-group{margin-bottom:16px;padding:16px;background:var(--bg-card);border-radius:var(--radius-md);border-left:4px solid}
+.findings-group.theory{border-left-color:var(--accent-blue)}
+.findings-group.practice{border-left-color:var(--accent-green)}
+.findings-group.literature{border-left-color:var(--accent-purple)}
+.findings-group-header{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.findings-group-icon{font-size:1.1em}
+.findings-group-title{font-size:.88em;font-weight:700}
+.findings-group.theory .findings-group-title{color:var(--accent-blue)}
+.findings-group.practice .findings-group-title{color:var(--accent-green)}
+.findings-group.literature .findings-group-title{color:var(--accent-purple)}
+.findings-list{list-style:none}
+.findings-item{display:flex;gap:10px;padding:8px 0;font-size:.85em;line-height:1.6;color:var(--text-secondary);border-bottom:1px solid rgba(255,255,255,.05)}
+.findings-item:last-child{border-bottom:none}
+.findings-num{min-width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.72em;font-weight:700;font-family:var(--font-mono);flex-shrink:0}
+.findings-group.theory .findings-num{background:rgba(59,130,246,.15);color:var(--accent-blue)}
+.findings-group.practice .findings-num{background:rgba(16,185,129,.15);color:var(--accent-green)}
+.findings-group.literature .findings-num{background:rgba(139,92,246,.15);color:var(--accent-purple)}
+
+.caveats-section{margin-top:16px;padding:16px;background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:var(--radius-md)}.caveats-title{font-size:.82em;font-weight:700;color:var(--accent-amber);margin-bottom:8px}.caveat-item{font-size:.82em;color:var(--text-secondary);padding:3px 0 3px 16px;position:relative}.caveat-item::before{content:'⚠';position:absolute;left:0}
+
+/* === 새로운 참고문헌 스타일 (가독성 개선) === */
+.references-card{background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);padding:24px;margin-bottom:16px}
+.references-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.references-header-left{display:flex;align-items:center;gap:10px}
+.ref-badge{padding:4px 12px;border-radius:20px;font-size:.72em;font-weight:700;background:rgba(139,92,246,.15);color:var(--accent-purple);border:1px solid rgba(139,92,246,.3)}
+.ref-count{font-size:.75em;color:var(--text-muted);font-family:var(--font-mono)}
+.ref-grid{display:flex;flex-direction:column;gap:8px}
+.ref-item{display:flex;gap:12px;padding:12px 16px;background:var(--bg-card);border-radius:var(--radius-md);border-left:3px solid var(--accent-purple);transition:background .2s}
+.ref-item:hover{background:var(--bg-card-hover)}
+.ref-num{min-width:28px;height:28px;border-radius:50%;background:rgba(139,92,246,.15);color:var(--accent-purple);display:flex;align-items:center;justify-content:center;font-size:.75em;font-weight:700;font-family:var(--font-mono);flex-shrink:0}
+.ref-content{flex:1;min-width:0}
+.ref-title{font-size:.88em;font-weight:600;color:var(--text-primary);margin-bottom:4px;line-height:1.4}
+.ref-meta{display:flex;flex-wrap:wrap;gap:8px;font-size:.75em;color:var(--text-muted)}
+.ref-meta span{display:inline-flex;align-items:center;gap:4px}
+.ref-link{color:var(--accent-cyan);text-decoration:none;font-size:.75em;word-break:break-all}
+.ref-link:hover{text-decoration:underline}
+.ref-source-badge{font-size:.65em;padding:2px 6px;border-radius:10px;font-weight:600}
+.ref-source-badge.perplexity{background:rgba(59,130,246,.1);color:var(--accent-blue)}
+.ref-source-badge.claude{background:rgba(217,119,6,.1);color:#d97706}
+.ref-source-badge.gpt{background:rgba(16,185,129,.1);color:var(--accent-green)}
+
+.confidence-note{margin-top:12px;font-size:.78em;color:var(--text-muted);font-family:var(--font-mono);padding:8px 12px;background:var(--bg-card);border-radius:var(--radius-sm)}
+.divergence-card{background:var(--bg-panel);border:1px solid rgba(239,68,68,.2);border-radius:var(--radius-xl);padding:20px;margin-bottom:16px}.divergence-title{font-size:.92em;font-weight:700;color:var(--accent-red);margin-bottom:12px}.divergence-item{padding:12px;margin-bottom:8px;background:rgba(239,68,68,.05);border-radius:var(--radius-md)}.divergence-item .topic{font-weight:600;font-size:.85em;margin-bottom:4px}.divergence-item .detail{font-size:.82em;color:var(--text-secondary)}
+.ai-details-section{background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);overflow:hidden}.ai-details-toggle{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;cursor:pointer;background:var(--bg-card);border-bottom:1px solid var(--border-dim)}.toggle-left{display:flex;flex-direction:column;gap:2px}.toggle-label{font-size:.9em;font-weight:600}.toggle-sub{font-size:.75em;color:var(--text-muted)}.toggle-arrow{font-size:1.1em;color:var(--text-muted)}
+.ai-details-body{display:none;padding:16px}.ai-details-body.open{display:block}
+.response-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.response-card{background:var(--bg-card);border:1px solid var(--border-dim);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column}.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border-dim)}.card-ai-name{display:flex;align-items:center;gap:8px;font-weight:700;font-size:.9em}.card-ai-dot{width:8px;height:8px;border-radius:50%}.dot-claude{background:#d97706}.dot-gpt{background:#10b981}.dot-perplexity{background:#3b82f6}.card-confidence{font-size:.75em}.card-body{flex:1;font-size:.85em;color:var(--text-secondary);line-height:1.7;max-height:280px;overflow-y:auto}.card-footer{margin-top:12px;padding-top:8px;border-top:1px solid var(--border-dim);font-size:.72em;color:var(--text-muted)}
+.history-section{background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);padding:20px}.history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}.history-list{max-height:300px;overflow-y:auto}.history-item{display:flex;align-items:center;gap:12px;padding:12px;margin-bottom:6px;background:var(--bg-card);border-radius:var(--radius-md);cursor:pointer}.history-item:hover{background:var(--bg-card-hover)}.history-score{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.82em;font-weight:700;font-family:var(--font-mono)}.history-info{flex:1;min-width:0}.history-question{font-size:.85em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.history-time{font-size:.72em;color:var(--text-muted);margin-top:2px}
+@media(max-width:900px){.form-grid{grid-template-columns:1fr 1fr}.form-field.span-4{grid-column:span 2}.response-grid{grid-template-columns:1fr}.config-bar{grid-template-columns:1fr}.consensus-row{flex-direction:column;text-align:center}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<div class="header">
+<div class="header-left"><div class="header-icon">🤖</div><div><div class="header-title"><span>JARVIS-1</span> Cross-Validator</div><div class="header-sub">Multi-AI Fact Verification Engine v3.0</div></div></div>
+<div class="header-right"><div class="status-dot" id="statusDot"></div><span class="status-text" id="statusText">READY</span></div>
+</div>
+
+<div class="config-bar">
+<div class="config-group"><div class="config-label">n8n Webhook URL</div><input type="text" class="config-input" id="webhookUrl" placeholder="https://your-n8n.com/webhook/jarvis-cv"></div>
+<div class="config-group"><div class="config-label">Email (Optional)</div><input type="email" class="config-input" id="emailRecipient" placeholder="result@email.com"></div>
+<button class="btn-test" onclick="testWebhook()">🔗 연결 테스트</button>
+</div>
+
+<div class="input-section">
+<div class="section-header"><span class="section-tag tag-input">INPUT</span><span class="section-title">검증 요청</span></div>
+<div class="form-grid">
+<div class="form-field"><label class="field-label">분석 모드</label><select class="field-select" id="analysisMode"><option value="cross_validate">교차검증 (Cross-Validation)</option><option value="deep_analysis">심층분석 (Deep Analysis)</option><option value="quick_check">빠른 확인 (Quick Check)</option></select></div>
+<div class="form-field"><label class="field-label">도메인</label><select class="field-select" id="domain"><option value="cnt_battery">CNT 배터리</option><option value="battery_general">배터리 일반</option><option value="materials">소재 과학</option><option value="electrochemistry">전기화학</option></select></div>
+<div class="form-field"><label class="field-label">CNT 유형</label><select class="field-select" id="cntType"><option value="all">전체</option><option value="swcnt">SWCNT</option><option value="mwcnt">MWCNT</option><option value="dwcnt">DWCNT</option></select></div>
+<div class="form-field"><label class="field-label">신뢰도 기준</label><select class="field-select" id="confidenceThreshold"><option value="70">70% 이상</option><option value="80">80% 이상</option><option value="60">60% 이상</option></select></div>
+<div class="form-field span-4"><label class="field-label">질문 (Question)</label><textarea class="field-textarea" id="question" placeholder="검증하고 싶은 기술적 질문을 입력하세요..." oninput="autoMatchModules()"></textarea></div>
+</div>
+<div id="matchedModulesSection" style="display:none"><div style="font-size:.78em;color:var(--text-muted);margin-bottom:6px">🔗 관련 모듈 자동 감지:</div><div class="module-pills" id="modulePills"></div></div>
+<div class="context-section"><div class="context-header" onclick="toggleContext()"><h4>📎 추가 컨텍스트 (선택)</h4><span class="context-toggle" id="contextToggle">▶ 펼치기</span></div><div class="context-body" id="contextBody"><div class="form-grid" style="margin-top:0"><div class="form-field span-2"><label class="field-label">참고 데이터</label><textarea class="field-textarea" id="referenceData" placeholder="관련 수치, 조건 등..."></textarea></div><div class="form-field"><label class="field-label">양극 조건</label><input type="text" class="field-input" id="cathodeInfo" placeholder="NCM811 4mAh/cm²"></div><div class="form-field"><label class="field-label">음극 조건</label><input type="text" class="field-input" id="anodeInfo" placeholder="Graphite 5mAh/cm²"></div></div></div></div>
+<div class="action-bar"><button class="btn btn-primary" id="submitBtn" onclick="submitValidation()">🚀 교차검증 실행</button><button class="btn btn-secondary" onclick="previewPayload()">📄 Payload</button><button class="btn btn-secondary" onclick="clearForm()">🔄 초기화</button></div>
+</div>
+
+<div class="loading-section" id="loadingSection">
+<div class="loading-title">🔄 AI 분석 진행 중...</div>
+<div class="ai-progress">
+<div class="ai-slot" id="slotClaude"><div class="ai-icon-area" id="iconClaude"><div class="spinner"></div></div><div class="ai-name claude">Claude</div><div class="ai-status" id="statusClaude">대기</div></div>
+<div class="ai-slot" id="slotGPT"><div class="ai-icon-area" id="iconGPT"><div class="spinner"></div></div><div class="ai-name gpt">GPT</div><div class="ai-status" id="statusGPT">대기</div></div>
+<div class="ai-slot" id="slotPerplexity"><div class="ai-icon-area" id="iconPerplexity"><div class="spinner"></div></div><div class="ai-name perplexity">Perplexity</div><div class="ai-status" id="statusPerplexity">대기</div></div>
+</div>
+<div class="progress-bar-container"><div class="progress-bar" id="progressBar"></div></div>
+<div class="loading-timer" id="loadingTimer">경과: 0s</div>
+</div>
+
+<div class="results-section" id="resultsSection">
+<div class="consensus-banner"><div class="consensus-row"><div class="consensus-score score-high" id="consensusScore">—</div><div class="consensus-details"><div class="consensus-label">합의도 (CONSENSUS SCORE)</div><div class="consensus-text" id="consensusVerdict">대기 중</div><div class="consensus-summary" id="consensusSummary"></div><div class="consensus-meta" id="consensusMeta"></div></div></div></div>
+<div class="unified-card" id="unifiedCard" style="display:none"><div class="unified-header"><span class="unified-badge">🔬 SYNTHESIS</span><span class="unified-title">통합 검증 답변</span></div><div class="unified-body" id="unifiedBody"></div><div class="findings-container" id="findingsContainer"></div><div class="caveats-section" id="caveatsSection" style="display:none"><div class="caveats-title">⚠️ 주의사항</div><div id="caveatsList"></div></div><div class="confidence-note" id="confidenceNote" style="display:none"></div></div>
+<div class="references-card" id="referencesCard" style="display:none"><div class="references-header"><div class="references-header-left"><span class="ref-badge">📚 REFERENCES</span><span class="section-title">참고 문헌</span></div><span class="ref-count" id="refCount"></span></div><div class="ref-grid" id="refGrid"></div></div>
+<div class="divergence-card" id="divergenceCard" style="display:none"><div class="divergence-title">⚠️ 의견 불일치 영역</div><div id="divergenceList"></div></div>
+<div class="ai-details-section"><div class="ai-details-toggle" id="aiDetailsToggle" onclick="toggleAIDetails()"><div class="toggle-left"><span class="toggle-label">🤖 개별 AI 원문 보기</span><span class="toggle-sub">Claude · GPT · Perplexity 각각의 응답</span></div><span class="toggle-arrow" id="aiDetailsArrow">▶</span></div><div class="ai-details-body" id="aiDetailsBody"><div class="response-grid" id="responseGrid" style="margin-top:12px"></div></div></div>
+<div class="action-bar" style="margin-top:16px"><button class="btn btn-secondary" onclick="copyResults()">📋 결과 복사</button><button class="btn btn-secondary" onclick="exportJSON()">💾 JSON 내보내기</button></div>
+</div>
+
+<div class="history-section"><div class="history-header"><div class="section-header" style="margin-bottom:0"><span class="section-tag" style="background:rgba(245,158,11,.15);color:var(--accent-amber)">LOG</span><span class="section-title">검증 히스토리</span></div><button class="btn-test" onclick="clearHistory()">🗑️ 초기화</button></div><div class="history-list" id="historyList"><div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.85em">아직 검증 기록이 없습니다</div></div></div>
+
+<div id="payloadModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center"><div style="background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);padding:24px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><span style="font-weight:700">📦 Payload</span><button class="btn-test" onclick="closePayloadModal()">✕</button></div><pre id="payloadPreview" style="background:var(--bg-deep);padding:16px;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:.82em;line-height:1.6;overflow-x:auto;color:var(--accent-cyan);white-space:pre-wrap"></pre><div style="margin-top:12px"><button class="btn btn-secondary" style="width:100%" onclick="copyPayload()">📋 복사</button></div></div></div>
+</div>
+
+<script>
+const MODULES_DB=[{id:"sop_module_008",name:"Percolation Curve 측정",keywords:["percolation","전도도","threshold","φc"]},{id:"sop_module_005",name:"EIS 측정 프로토콜",keywords:["EIS","임피던스","Nyquist","Rs","Rct"]},{id:"sop_module_006",name:"Rate Capability 테스트",keywords:["rate","C-rate","율특성","충방전"]},{id:"sop_module_007",name:"점도 측정 프로토콜",keywords:["점도","viscosity","rheology"]},{id:"sop_module_009v2",name:"Tortuosity 측정 SOP",keywords:["tortuosity","굴곡도","τ","MacMullin"]},{id:"theory_module_001",name:"Percolation Theory 기초",keywords:["percolation","threshold","φc","aspect ratio"]},{id:"theory_module_002v2",name:"EIS Tortuosity 분석",keywords:["tortuosity","τ","MacMullin","이온전도"]},{id:"theory_module_003",name:"Li+ 확산 이론",keywords:["diffusion","확산","Warburg","GITT"]},{id:"theory_module_005",name:"CNT 분산 안정화",keywords:["분산","dispersion","zeta"]},{id:"theory_module_006",name:"Rate Capability 제한 인자",keywords:["rate","율특성","limiting","IR drop"]},{id:"material_module_001",name:"NCM811 물성",keywords:["NCM811","양극","고니켈"]},{id:"material_module_002",name:"SWCNT 분산액 물성",keywords:["SWCNT","분산액"]}];
+let state={matchedModules:new Set(),history:JSON.parse(localStorage.getItem('jarvis_cv_history')||'[]'),lastResult:null,timerInterval:null,progressInterval:null};
+
+function autoMatchModules(){const q=document.getElementById('question').value.toLowerCase();if(q.length<3){document.getElementById('matchedModulesSection').style.display='none';return}state.matchedModules=new Set();MODULES_DB.forEach(m=>{if(m.keywords.some(k=>q.includes(k.toLowerCase())))state.matchedModules.add(m.id)});renderModulePills()}
+function renderModulePills(){const s=document.getElementById('matchedModulesSection'),c=document.getElementById('modulePills');if(!state.matchedModules.size){s.style.display='none';return}s.style.display='block';c.innerHTML=MODULES_DB.filter(m=>state.matchedModules.has(m.id)).map(m=>`<div class="module-pill active" onclick="toggleModulePill('${m.id}')">✓ ${m.name}</div>`).join('')}
+function toggleModulePill(id){state.matchedModules.has(id)?state.matchedModules.delete(id):state.matchedModules.add(id);renderModulePills()}
+function toggleContext(){const b=document.getElementById('contextBody'),t=document.getElementById('contextToggle');const o=b.classList.toggle('open');t.textContent=o?'▼ 접기':'▶ 펼치기'}
+function toggleAIDetails(){const b=document.getElementById('aiDetailsBody'),a=document.getElementById('aiDetailsArrow');const o=b.classList.toggle('open');a.textContent=o?'▼':'▶'}
+function buildPayload(){const q=document.getElementById('question').value.trim();if(!q)return null;return{meta:{source:'JARVIS-1',version:'3.0.0',timestamp:new Date().toISOString(),request_id:`cv_${Date.now()}_${Math.random().toString(36).slice(2,8)}`},config:{mode:document.getElementById('analysisMode').value,domain:document.getElementById('domain').value,cnt_type:document.getElementById('cntType').value,confidence_threshold:document.getElementById('confidenceThreshold').value,email_recipient:document.getElementById('emailRecipient').value.trim(),send_email:!!document.getElementById('emailRecipient').value.trim()},question:q,context:{reference_data:document.getElementById('referenceData')?.value.trim()||'',cathode_info:document.getElementById('cathodeInfo')?.value.trim()||'',anode_info:document.getElementById('anodeInfo')?.value.trim()||'',matched_modules:Array.from(state.matchedModules)},ai_instructions:{system_role:"You are a CNT/battery technology expert.",output_format:{answer:"답변(한국어)",confidence:"0-100",key_facts:[],caveats:[],sources:[]}}}}
+function resetLoadingUI(){['Claude','GPT','Perplexity'].forEach(n=>{document.getElementById('slot'+n).className='ai-slot';document.getElementById('icon'+n).innerHTML='<div class="spinner"></div>';document.getElementById('status'+n).textContent='대기'});document.getElementById('progressBar').style.width='0%';document.getElementById('loadingTimer').textContent='경과: 0s'}
+function updateSlot(n,s,st){document.getElementById('slot'+n).className='ai-slot '+st;document.getElementById('status'+n).textContent=s;if(st==='done')document.getElementById('icon'+n).innerHTML='<span style="font-size:1.5em;color:var(--accent-green)">✓</span>';else if(st==='error')document.getElementById('icon'+n).innerHTML='<span style="font-size:1.5em;color:var(--accent-red)">✗</span>'}
+async function submitValidation(){const url=document.getElementById('webhookUrl').value.trim();if(!url){alert('⚠️ Webhook URL을 입력해주세요.');return}const p=buildPayload();if(!p){alert('⚠️ 질문을 입력해주세요.');return}document.getElementById('submitBtn').disabled=true;resetLoadingUI();document.getElementById('loadingSection').classList.add('active');document.getElementById('resultsSection').classList.remove('active');setStatus('PROCESSING','var(--accent-amber)');let el=0;state.timerInterval=setInterval(()=>{el++;document.getElementById('loadingTimer').textContent=`경과: ${el}s`},1000);setTimeout(()=>updateSlot('Claude','분석 중...','running'),500);setTimeout(()=>updateSlot('GPT','분석 중...','running'),1500);setTimeout(()=>updateSlot('Perplexity','검색 중...','running'),2500);let pr=0;state.progressInterval=setInterval(()=>{pr+=Math.random()*6;if(pr>85)pr=85;document.getElementById('progressBar').style.width=pr+'%'},500);try{const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(p)});clearInterval(state.progressInterval);if(!r.ok)throw new Error(`HTTP ${r.status}`);const result=await r.json();clearInterval(state.timerInterval);updateSlot('Claude','완료','done');updateSlot('GPT','완료','done');updateSlot('Perplexity','완료','done');document.getElementById('progressBar').style.width='100%';setTimeout(()=>{document.getElementById('loadingSection').classList.remove('active');displayResults(result,p);setStatus('COMPLETE','var(--accent-green)');document.getElementById('submitBtn').disabled=false},600)}catch(e){clearInterval(state.timerInterval);clearInterval(state.progressInterval);document.getElementById('loadingSection').classList.remove('active');setStatus('ERROR','var(--accent-red)');document.getElementById('submitBtn').disabled=false;alert('⚠️ '+e.message)}}
+
+function displayResults(result,payload){
+  state.lastResult=result;
+  const d=normalizeResult(result);
+  document.getElementById('resultsSection').classList.add('active');
+  
+  // Consensus Score
+  const scoreEl=document.getElementById('consensusScore');
+  const score=d.consensus_score||0;
+  scoreEl.textContent=score+'%';
+  scoreEl.className='consensus-score '+(score>=80?'score-high':score>=50?'score-mid':'score-low');
+  document.getElementById('consensusVerdict').textContent=d.consensus_verdict||'';
+  document.getElementById('consensusSummary').textContent=d.consensus_summary||'';
+  
+  const rid=payload.meta?.request_id?.slice(-8)||'';
+  const mode=payload.config?.mode||'';
+  document.getElementById('consensusMeta').innerHTML=`<span class="meta-tag ${score>=80?'agree':score>=50?'partial':'disagree'}">합의도: ${score}%</span>${mode?`<span class="meta-tag" style="background:rgba(59,130,246,.1);color:var(--accent-blue)">모드: ${mode}</span>`:''}${rid?`<span class="meta-tag" style="background:rgba(139,92,246,.1);color:var(--accent-purple)">ID: ${rid}</span>`:''}`;
+
+  // Unified Card - 통합 검증 답변 (AI별 구분 없이 하나로)
+  const syn=d.synthesis;
+  const uc=document.getElementById('unifiedCard');
+  if(syn&&syn.unified_answer){
+    uc.style.display='block';
+    // [Claude 분석], [GPT 검증] 등의 태그 제거하고 깔끔하게 표시
+    let cleanAnswer = syn.unified_answer
+      .replace(/\[Claude 분석\]\n?/g, '')
+      .replace(/\[GPT 검증\]\n?/g, '')
+      .replace(/\[문헌 뒷받침\]\n?/g, '')
+      .trim();
+    document.getElementById('unifiedBody').innerHTML=cleanAnswer.split('\n').filter(p=>p.trim()).map(p=>`<p>${p}</p>`).join('');
+    
+    // === Key Findings 3-그룹 렌더링 ===
+    const fc=document.getElementById('findingsContainer');
+    if(syn.key_findings?.length>0){
+      const theory=[],practice=[],literature=[];
+      syn.key_findings.forEach(f=>{
+        const fs=String(f);
+        if(fs.startsWith('[이론]'))theory.push(fs.replace('[이론]','').trim());
+        else if(fs.startsWith('[실무]'))practice.push(fs.replace('[실무]','').trim());
+        else if(fs.startsWith('[문헌]'))literature.push(fs.replace('[문헌]','').trim());
+        else theory.push(fs); // 기본은 이론으로
+      });
+      
+      let html='';
+      if(theory.length>0){
+        html+=`<div class="findings-group theory"><div class="findings-group-header"><span class="findings-group-icon">🔬</span><span class="findings-group-title">이론 분석</span></div><ul class="findings-list">${theory.map((f,i)=>`<li class="findings-item"><span class="findings-num">${i+1}</span><span>${f}</span></li>`).join('')}</ul></div>`;
+      }
+      if(practice.length>0){
+        html+=`<div class="findings-group practice"><div class="findings-group-header"><span class="findings-group-icon">🔧</span><span class="findings-group-title">실무 적용</span></div><ul class="findings-list">${practice.map((f,i)=>`<li class="findings-item"><span class="findings-num">${i+1}</span><span>${f}</span></li>`).join('')}</ul></div>`;
+      }
+      if(literature.length>0){
+        html+=`<div class="findings-group literature"><div class="findings-group-header"><span class="findings-group-icon">📚</span><span class="findings-group-title">문헌 검증</span></div><ul class="findings-list">${literature.map((f,i)=>`<li class="findings-item"><span class="findings-num">${i+1}</span><span>${f}</span></li>`).join('')}</ul></div>`;
+      }
+      fc.innerHTML=html;
+      fc.style.display='block';
+    }else{
+      fc.style.display='none';
+    }
+    
+    // Caveats
+    const cs=document.getElementById('caveatsSection');
+    if(syn.all_caveats?.length>0){
+      cs.style.display='block';
+      document.getElementById('caveatsList').innerHTML=syn.all_caveats.map(c=>`<div class="caveat-item">${c}</div>`).join('');
+    }else cs.style.display='none';
+    
+    const cn=document.getElementById('confidenceNote');
+    if(syn.confidence_note){cn.style.display='block';cn.textContent=syn.confidence_note}else cn.style.display='none';
+  }else{
+    uc.style.display='none';
+  }
+
+  // === 참고문헌 렌더링 (가독성 개선, 최대 10개) ===
+  const rc=document.getElementById('referencesCard');
+  const rg=document.getElementById('refGrid');
+  let refs=[];
+  
+  if(syn?.references?.length>0){
+    refs=syn.references.slice(0,10); // 최대 10개
+  }else{
+    // fallback: 개별 AI sources 수집
+    const srcSet=new Set();
+    ['claude','gpt','perplexity'].forEach(ai=>{
+      (d.responses?.[ai]?.sources||[]).forEach(s=>{
+        const k=String(typeof s==='object'?s.title:s).toLowerCase().slice(0,30);
+        if(!srcSet.has(k)&&refs.length<10){
+          srcSet.add(k);
+          refs.push(typeof s==='object'?s:{title:s,source_ai:ai});
+        }
+      });
+    });
+  }
+  
+  if(refs.length>0){
+    rc.style.display='block';
+    document.getElementById('refCount').textContent=`${refs.length}개 문헌`;
+    
+    rg.innerHTML=refs.map((ref,i)=>{
+      const title=ref.title||`Reference ${i+1}`;
+      const authors=ref.authors||'';
+      const journal=ref.journal||'';
+      const year=ref.year||'';
+      const url=ref.url||'';
+      const srcAi=(ref.source_ai||'perplexity').toLowerCase();
+      
+      return`<div class="ref-item">
+        <span class="ref-num">${i+1}</span>
+        <div class="ref-content">
+          <div class="ref-title">${title}</div>
+          <div class="ref-meta">
+            ${authors?`<span>👤 ${authors}</span>`:''}
+            ${journal?`<span>📖 ${journal}</span>`:''}
+            ${year?`<span>📅 ${year}</span>`:''}
+            <span class="ref-source-badge ${srcAi}">${srcAi}</span>
+          </div>
+          ${url?`<a href="${url}" target="_blank" class="ref-link">🔗 ${url}</a>`:''}
+        </div>
+      </div>`;
+    }).join('');
+  }else{
+    rc.style.display='none';
+  }
+
+  // Divergences
+  const dc=document.getElementById('divergenceCard');
+  if(d.divergences?.length>0){
+    dc.style.display='block';
+    document.getElementById('divergenceList').innerHTML=d.divergences.map(dv=>`<div class="divergence-item"><div class="topic">${dv.topic||''}</div><div class="detail">${dv.detail||''}</div></div>`).join('');
+  }else dc.style.display='none';
+
+  // AI Response Cards
+  const ais=[{key:'claude',name:'Claude',dot:'dot-claude'},{key:'gpt',name:'GPT',dot:'dot-gpt'},{key:'perplexity',name:'Perplexity',dot:'dot-perplexity'}];
+  document.getElementById('responseGrid').innerHTML=ais.map(ai=>{
+    const r=d.responses?.[ai.key]||{};
+    const c=r.confidence||0;
+    const cc=c>=80?'agree':c>=50?'partial':'disagree';
+    return`<div class="response-card"><div class="card-header"><div class="card-ai-name"><div class="card-ai-dot ${ai.dot}"></div>${ai.name}</div><span class="card-confidence meta-tag ${cc}">신뢰도 ${c}%</span></div><div class="card-body">${fmtResp(r)}</div><div class="card-footer"><span class="card-tokens">${r.model||ai.key}</span></div></div>`;
+  }).join('');
+  
+  document.getElementById('aiDetailsBody').classList.remove('open');
+  document.getElementById('aiDetailsArrow').textContent='▶';
+  saveToHistory(payload,d);
+  document.getElementById('resultsSection').scrollIntoView({behavior:'smooth'});
+}
+
+function fmtResp(r){
+  if(!r?.answer)return'<em style="color:var(--text-muted)">응답 없음</em>';
+  let h=`<div style="margin-bottom:10px;line-height:1.8">${String(r.answer).replace(/\n/g,'<br>')}</div>`;
+  if(r.key_facts?.length)h+=`<div style="margin-top:10px;padding:8px 12px;background:rgba(16,185,129,.08);border-radius:6px;border-left:3px solid var(--accent-green)"><div style="font-size:.78em;font-weight:700;color:var(--accent-green);margin-bottom:4px">✓ 핵심 사실</div>${r.key_facts.map(f=>`<div style="font-size:.82em;padding:2px 0">• ${f}</div>`).join('')}</div>`;
+  if(r.caveats?.length)h+=`<div style="margin-top:8px;padding:8px 12px;background:rgba(245,158,11,.08);border-radius:6px;border-left:3px solid var(--accent-amber)"><div style="font-size:.78em;font-weight:700;color:var(--accent-amber);margin-bottom:4px">⚠ 주의사항</div>${r.caveats.map(c=>`<div style="font-size:.82em;padding:2px 0">• ${c}</div>`).join('')}</div>`;
+  return h;
+}
+
+function normalizeResult(raw){
+  if(raw?.consensus_score!==undefined&&raw.responses)return raw;
+  const inner=raw&&(raw.output||raw.result||raw.data);
+  if(inner&&inner!==raw)return normalizeResult(inner);
+  return{consensus_score:0,consensus_verdict:'⚠️ 형식 확인 필요',consensus_summary:'',synthesis:null,responses:{claude:{answer:JSON.stringify(raw,null,2),confidence:0},gpt:{answer:'—',confidence:0},perplexity:{answer:'—',confidence:0}},divergences:[]};
+}
+
+function saveToHistory(p,d){state.history.unshift({id:p.meta?.request_id||Date.now().toString(),timestamp:p.meta?.timestamp||new Date().toISOString(),question:(p.question||'').slice(0,80),score:d.consensus_score||0,data:d});if(state.history.length>50)state.history=state.history.slice(0,50);localStorage.setItem('jarvis_cv_history',JSON.stringify(state.history));renderHistory()}
+function renderHistory(){const l=document.getElementById('historyList');if(!state.history.length){l.innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:.85em">아직 검증 기록이 없습니다</div>';return}l.innerHTML=state.history.map(h=>{const sc=h.score>=80?'score-high':h.score>=50?'score-mid':'score-low';const t=new Date(h.timestamp).toLocaleString('ko-KR',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});return`<div class="history-item" onclick="loadHistoryItem('${h.id}')"><div class="history-score ${sc}">${h.score}%</div><div class="history-info"><div class="history-question">${h.question}</div><div class="history-time">${t}</div></div></div>`}).join('')}
+function loadHistoryItem(id){const i=state.history.find(h=>h.id===id);if(i)displayResults(i.data,{config:{},meta:{request_id:id}})}
+function clearHistory(){if(!confirm('히스토리를 삭제하시겠습니까?'))return;state.history=[];localStorage.removeItem('jarvis_cv_history');renderHistory()}
+function setStatus(t,c){document.getElementById('statusText').textContent=t;const d=document.getElementById('statusDot');d.style.background=c;d.style.boxShadow=`0 0 8px ${c}`}
+function testWebhook(){const u=document.getElementById('webhookUrl').value.trim();if(!u){alert('URL을 입력해주세요.');return}fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({test:true})}).then(r=>r.ok?alert('✅ 연결 성공!'):alert('⚠️ HTTP '+r.status)).catch(e=>alert('❌ '+e.message))}
+function previewPayload(){const p=buildPayload();if(!p){alert('질문을 입력해주세요.');return}document.getElementById('payloadPreview').textContent=JSON.stringify(p,null,2);document.getElementById('payloadModal').style.display='flex'}
+function closePayloadModal(){document.getElementById('payloadModal').style.display='none'}
+function copyPayload(){navigator.clipboard.writeText(document.getElementById('payloadPreview').textContent).then(()=>alert('✅ 복사!'))}
+function copyResults(){if(!state.lastResult)return;const d=normalizeResult(state.lastResult);let t=`JARVIS-1 교차검증 결과\n${'='.repeat(50)}\n합의도: ${d.consensus_score}%\n판정: ${d.consensus_verdict}\n\n`;if(d.synthesis?.unified_answer){t+=`[통합 검증 답변]\n${d.synthesis.unified_answer}\n\n`;if(d.synthesis.key_findings?.length)t+=`[핵심 발견]\n${d.synthesis.key_findings.map((f,i)=>`${i+1}. ${f}`).join('\n')}\n\n`;if(d.synthesis.references?.length)t+=`[참고 문헌]\n${d.synthesis.references.map((r,i)=>`${i+1}. ${r.title||r}${r.url?' - '+r.url:''}`).join('\n')}\n\n`}['claude','gpt','perplexity'].forEach(ai=>{const r=d.responses?.[ai];if(r?.answer)t+=`[${ai.toUpperCase()}] (신뢰도: ${r.confidence}%)\n${r.answer}\n\n`});navigator.clipboard.writeText(t).then(()=>alert('✅ 복사 완료!'))}
+function exportJSON(){if(!state.lastResult)return;const b=new Blob([JSON.stringify(state.lastResult,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=`jarvis_cv_${Date.now()}.json`;a.click()}
+function clearForm(){if(!confirm('초기화?'))return;document.getElementById('question').value='';['referenceData','cathodeInfo','anodeInfo'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});document.getElementById('matchedModulesSection').style.display='none';document.getElementById('resultsSection').classList.remove('active');state.matchedModules.clear();setStatus('READY','var(--accent-green)')}
+renderHistory();const su=localStorage.getItem('jarvis_webhook_url');if(su)document.getElementById('webhookUrl').value=su;const se=localStorage.getItem('jarvis_email');if(se)document.getElementById('emailRecipient').value=se;document.getElementById('webhookUrl').addEventListener('change',function(){localStorage.setItem('jarvis_webhook_url',this.value)});document.getElementById('emailRecipient').addEventListener('change',function(){localStorage.setItem('jarvis_email',this.value)});
+</script>
+</body>
+</html>
