@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛡️ JARVIS-1 Cross-Validation Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Noto+Sans+KR:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-deep: #0a0e1a;
+            --bg-panel: #111827;
+            --bg-card: #1a2236;
+            --bg-card-hover: #1f2a42;
+            --border-dim: #2a3550;
+            --border-accent: #3b82f6;
+            --text-primary: #e8ecf4;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6b85;
+            --accent-blue: #3b82f6;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --claude-gradient: linear-gradient(135deg, #d97706, #dc6b20);
+            --gpt-gradient: linear-gradient(135deg, #10b981, #059669);
+            --perplexity-gradient: linear-gradient(135deg, #3b82f6, #6366f1);
+            --consensus-gradient: linear-gradient(135deg, #8b5cf6, #a855f7);
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --shadow-card: 0 4px 24px rgba(0,0,0,0.3);
+            --shadow-glow: 0 0 30px rgba(59,130,246,0.15);
+            --font-mono: 'JetBrains Mono', 'Consolas', monospace;
+            --font-sans: 'Noto Sans KR', -apple-system, sans-serif;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: var(--font-sans);
+            background: var(--bg-deep);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Subtle grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(59,130,246,0.04) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(139,92,246,0.04) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .app { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+        /* ===== HEADER ===== */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 28px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-xl);
+            margin-bottom: 20px;
+        }
+        .header-left { display: flex; align-items: center; gap: 16px; }
+        .header-icon {
+            width: 48px; height: 48px;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 24px;
+            box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+        }
+        .header-title { font-size: 1.5em; font-weight: 900; letter-spacing: -0.5px; }
+        .header-title span { 
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-cyan));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .header-sub { font-size: 0.8em; color: var(--text-muted); font-weight: 400; margin-top: 2px; }
+        .header-right { display: flex; gap: 8px; align-items: center; }
+        .status-dot {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--accent-green);
+            box-shadow: 0 0 8px rgba(16,185,129,0.5);
+            animation: pulse 2s infinite;
+        }
+        .status-text { font-size: 0.8em; color: var(--text-secondary); font-family: var(--font-mono); }
+        
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+
+        /* ===== CONFIG BAR ===== */
+        .config-bar {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 12px;
+            padding: 16px 20px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-lg);
+            margin-bottom: 20px;
+        }
+        .config-group { display: flex; flex-direction: column; gap: 4px; }
+        .config-label { font-size: 0.72em; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+        .config-input {
+            padding: 8px 12px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.85em;
+            transition: border-color 0.2s;
+        }
+        .config-input:focus { outline: none; border-color: var(--accent-blue); }
+        .config-input::placeholder { color: var(--text-muted); }
+        .btn-test {
+            align-self: end;
+            padding: 8px 16px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            color: var(--text-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-size: 0.82em;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .btn-test:hover { border-color: var(--accent-green); color: var(--accent-green); }
+
+        /* ===== MAIN INPUT SECTION ===== */
+        .input-section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+        .section-header {
+            display: flex; align-items: center; gap: 10px;
+            margin-bottom: 16px;
+        }
+        .section-tag {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7em;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .tag-input { background: rgba(59,130,246,0.15); color: var(--accent-blue); }
+        .tag-result { background: rgba(139,92,246,0.15); color: var(--accent-purple); }
+        .tag-consensus { background: rgba(16,185,129,0.15); color: var(--accent-green); }
+        .section-title { font-size: 1.05em; font-weight: 700; }
+
+        /* Form grid */
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+        .form-field { display: flex; flex-direction: column; gap: 4px; }
+        .form-field.span-2 { grid-column: span 2; }
+        .form-field.span-4 { grid-column: span 4; }
+        .field-label { font-size: 0.78em; font-weight: 600; color: var(--text-secondary); }
+        .field-input, .field-select, .field-textarea {
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-family: var(--font-sans);
+            font-size: 0.92em;
+            transition: border-color 0.2s;
+        }
+        .field-input:focus, .field-select:focus, .field-textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59,130,246,0.1);
+        }
+        .field-textarea { min-height: 110px; resize: vertical; line-height: 1.7; }
+        .field-select { cursor: pointer; }
+        .field-select option { background: var(--bg-card); }
+
+        /* Context input */
+        .context-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-md);
+            padding: 16px;
+            margin-top: 12px;
+        }
+        .context-header {
+            display: flex; justify-content: space-between; align-items: center;
+            cursor: pointer; user-select: none;
+        }
+        .context-header h4 { font-size: 0.88em; color: var(--text-secondary); }
+        .context-toggle { font-size: 0.8em; color: var(--text-muted); }
+        .context-body { display: none; margin-top: 12px; }
+        .context-body.open { display: block; }
+
+        /* Module pills */
+        .module-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+        .module-pill {
+            display: inline-flex; align-items: center; gap: 4px;
+            padding: 4px 10px;
+            background: rgba(59,130,246,0.08);
+            border: 1px solid rgba(59,130,246,0.2);
+            border-radius: 20px;
+            font-size: 0.75em;
+            color: var(--accent-blue);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .module-pill:hover { background: rgba(59,130,246,0.15); }
+        .module-pill.active { background: rgba(59,130,246,0.2); border-color: var(--accent-blue); }
+        .module-pill .pill-check { font-size: 0.9em; }
+
+        /* ===== ACTION BUTTONS ===== */
+        .action-bar {
+            display: flex; gap: 10px; margin-top: 20px;
+        }
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-family: var(--font-sans);
+            font-size: 0.92em;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.25s;
+            display: flex; align-items: center; gap: 8px;
+        }
+        .btn:hover { transform: translateY(-1px); }
+        .btn-primary {
+            flex: 2;
+            background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+            color: white;
+            box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+        }
+        .btn-primary:hover { box-shadow: 0 6px 24px rgba(59,130,246,0.4); }
+        .btn-primary:disabled {
+            opacity: 0.5; cursor: not-allowed; transform: none;
+            box-shadow: none;
+        }
+        .btn-secondary {
+            flex: 1;
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            color: var(--text-secondary);
+        }
+        .btn-secondary:hover { border-color: var(--text-secondary); color: var(--text-primary); }
+
+        /* ===== LOADING STATE ===== */
+        .loading-section {
+            display: none;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .loading-section.active { display: block; }
+        .loading-title { font-size: 1.1em; font-weight: 700; margin-bottom: 20px; }
+        .ai-progress { display: flex; justify-content: center; gap: 24px; margin-bottom: 24px; }
+        .ai-slot {
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            padding: 16px 20px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-lg);
+            min-width: 140px;
+            transition: all 0.3s;
+        }
+        .ai-slot.running { border-color: var(--accent-amber); box-shadow: 0 0 20px rgba(245,158,11,0.15); }
+        .ai-slot.done { border-color: var(--accent-green); box-shadow: 0 0 20px rgba(16,185,129,0.15); }
+        .ai-slot.error { border-color: var(--accent-red); }
+        .ai-name { font-size: 0.85em; font-weight: 700; }
+        .ai-name.claude { color: #d97706; }
+        .ai-name.gpt { color: #10b981; }
+        .ai-name.perplexity { color: #3b82f6; }
+        .ai-status { font-size: 0.75em; color: var(--text-muted); font-family: var(--font-mono); }
+        .spinner {
+            width: 24px; height: 24px;
+            border: 3px solid var(--border-dim);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .check-mark { font-size: 1.5em; color: var(--accent-green); }
+        .error-mark { font-size: 1.5em; color: var(--accent-red); }
+        .progress-bar-container {
+            background: var(--bg-card);
+            border-radius: 20px;
+            height: 6px;
+            overflow: hidden;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-blue), var(--accent-purple));
+            border-radius: 20px;
+            transition: width 0.5s ease;
+            width: 0%;
+        }
+        .loading-timer { font-size: 0.8em; color: var(--text-muted); font-family: var(--font-mono); margin-top: 12px; }
+
+        /* ===== RESULTS SECTION ===== */
+        .results-section {
+            display: none;
+            margin-bottom: 20px;
+        }
+        .results-section.active { display: block; }
+
+        /* Consensus Banner */
+        .consensus-banner {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            margin-bottom: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+        .consensus-banner::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue), var(--accent-purple));
+        }
+        .consensus-row {
+            display: flex; align-items: center; gap: 20px;
+        }
+        .consensus-score {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.8em; font-weight: 900;
+            font-family: var(--font-mono);
+            flex-shrink: 0;
+        }
+        .score-high { background: rgba(16,185,129,0.15); color: var(--accent-green); border: 2px solid var(--accent-green); }
+        .score-mid { background: rgba(245,158,11,0.15); color: var(--accent-amber); border: 2px solid var(--accent-amber); }
+        .score-low { background: rgba(239,68,68,0.15); color: var(--accent-red); border: 2px solid var(--accent-red); }
+        .consensus-details { flex: 1; }
+        .consensus-label { font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+        .consensus-text { font-size: 1em; font-weight: 600; margin: 4px 0; }
+        .consensus-summary { font-size: 0.88em; color: var(--text-secondary); line-height: 1.7; }
+        .consensus-meta { display: flex; gap: 16px; margin-top: 8px; }
+        .meta-tag { font-size: 0.75em; padding: 3px 8px; border-radius: 4px; font-family: var(--font-mono); }
+        .meta-tag.agree { background: rgba(16,185,129,0.1); color: var(--accent-green); }
+        .meta-tag.partial { background: rgba(245,158,11,0.1); color: var(--accent-amber); }
+        .meta-tag.disagree { background: rgba(239,68,68,0.1); color: var(--accent-red); }
+
+        /* AI Response Cards */
+        .response-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+        .response-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+        .response-card:hover { border-color: var(--border-accent); box-shadow: var(--shadow-glow); }
+        .card-header {
+            padding: 14px 18px;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid var(--border-dim);
+        }
+        .card-ai-name { font-weight: 700; font-size: 0.92em; display: flex; align-items: center; gap: 8px; }
+        .card-ai-dot { width: 10px; height: 10px; border-radius: 50%; }
+        .dot-claude { background: #d97706; }
+        .dot-gpt { background: #10b981; }
+        .dot-perplexity { background: #3b82f6; }
+        .card-confidence {
+            font-size: 0.75em; font-family: var(--font-mono);
+            padding: 2px 8px; border-radius: 4px;
+        }
+        .card-body {
+            padding: 18px;
+            font-size: 0.88em;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .card-body::-webkit-scrollbar { width: 4px; }
+        .card-body::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 2px; }
+        .card-footer {
+            padding: 10px 18px;
+            border-top: 1px solid var(--border-dim);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .card-tokens { font-size: 0.72em; color: var(--text-muted); font-family: var(--font-mono); }
+
+        /* Divergence Section */
+        .divergence-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-lg);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .divergence-title { font-size: 0.95em; font-weight: 700; color: var(--accent-amber); margin-bottom: 12px; }
+        .divergence-item {
+            padding: 12px;
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+            border-left: 3px solid var(--accent-amber);
+        }
+        .divergence-item .topic { font-weight: 700; font-size: 0.88em; margin-bottom: 4px; }
+        .divergence-item .detail { font-size: 0.82em; color: var(--text-secondary); line-height: 1.6; }
+
+        /* History */
+        .history-section {
+            background: var(--bg-panel);
+            border: 1px solid var(--border-dim);
+            border-radius: var(--radius-xl);
+            padding: 20px;
+        }
+        .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .history-list { max-height: 300px; overflow-y: auto; }
+        .history-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px;
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            margin-bottom: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .history-item:hover { background: var(--bg-card-hover); }
+        .history-score {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.78em; font-weight: 700;
+            font-family: var(--font-mono);
+            flex-shrink: 0;
+        }
+        .history-info { flex: 1; min-width: 0; }
+        .history-question { font-size: 0.85em; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .history-time { font-size: 0.72em; color: var(--text-muted); font-family: var(--font-mono); }
+
+        /* Utility */
+        .hidden { display: none !important; }
+        
+        @media (max-width: 900px) {
+            .form-grid { grid-template-columns: 1fr 1fr; }
+            .form-field.span-4 { grid-column: span 2; }
+            .response-grid { grid-template-columns: 1fr; }
+            .config-bar { grid-template-columns: 1fr; }
+            .ai-progress { flex-direction: column; align-items: center; }
+        }
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-field.span-2, .form-field.span-4 { grid-column: span 1; }
+            .header { flex-direction: column; gap: 12px; text-align: center; }
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+
+    <!-- HEADER -->
+    <div class="header">
+        <div class="header-left">
+            <div class="header-icon">🛡️</div>
+            <div>
+                <div class="header-title"><span>JARVIS-1</span> Cross-Validator</div>
+                <div class="header-sub">Multi-AI 교차검증 엔진 · Claude + GPT + Perplexity</div>
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="status-dot" id="statusDot"></div>
+            <span class="status-text" id="statusText">READY</span>
+        </div>
+    </div>
+
+    <!-- CONFIG BAR -->
+    <div class="config-bar">
+        <div class="config-group">
+            <span class="config-label">N8N Webhook URL</span>
+            <input class="config-input" type="text" id="webhookUrl" 
+                   placeholder="https://your-n8n.com/webhook/jarvis-cv" 
+                   value="">
+        </div>
+        <div class="config-group">
+            <span class="config-label">Email (결과 수신)</span>
+            <input class="config-input" type="email" id="emailRecipient" 
+                   placeholder="your@email.com">
+        </div>
+        <div class="config-group" style="justify-content: flex-end;">
+            <button class="btn-test" onclick="testWebhook()">⚡ 연결 테스트</button>
+        </div>
+    </div>
+
+    <!-- INPUT SECTION -->
+    <div class="input-section">
+        <div class="section-header">
+            <span class="section-tag tag-input">INPUT</span>
+            <span class="section-title">연구 질문 & 컨텍스트</span>
+        </div>
+
+        <div class="form-grid">
+            <div class="form-field">
+                <span class="field-label">분석 모드</span>
+                <select class="field-select" id="analysisMode">
+                    <option value="cross_validate">🛡️ 교차검증 (3 AI)</option>
+                    <option value="deep_analysis">🔬 심층분석 (Claude 중심)</option>
+                    <option value="fact_check">✅ 사실확인 (Perplexity 중심)</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <span class="field-label">도메인</span>
+                <select class="field-select" id="domain">
+                    <option value="cnt_battery">🔋 CNT / 배터리</option>
+                    <option value="materials">🧪 재료과학</option>
+                    <option value="electrochemistry">⚡ 전기화학</option>
+                    <option value="general_tech">🔧 일반 기술</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <span class="field-label">CNT 타입</span>
+                <select class="field-select" id="cntType">
+                    <option value="all">전체</option>
+                    <option value="MWCNT">MWCNT</option>
+                    <option value="SWCNT">SWCNT</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <span class="field-label">신뢰도 기준</span>
+                <select class="field-select" id="confidenceThreshold">
+                    <option value="strict">Strict (90%+)</option>
+                    <option value="normal" selected>Normal (70%+)</option>
+                    <option value="relaxed">Relaxed (50%+)</option>
+                </select>
+            </div>
+            <div class="form-field span-4">
+                <span class="field-label">질문 (교차검증할 내용)</span>
+                <textarea class="field-textarea" id="question" 
+                    placeholder="예: NCM811 양극에서 CNT 함량 0.5%와 1.0%의 전도도 차이는 percolation threshold와 어떤 관계가 있는가?&#10;&#10;기존 실험 데이터나 문헌 정보가 있다면 함께 입력하면 검증 정확도가 올라갑니다."
+                    oninput="autoMatchModules()"></textarea>
+            </div>
+        </div>
+
+        <!-- Collapsible Context -->
+        <div class="context-section">
+            <div class="context-header" onclick="toggleContext()">
+                <h4>📎 추가 컨텍스트 (실험 데이터, 논문 내용 등)</h4>
+                <span class="context-toggle" id="contextToggle">▶ 펼치기</span>
+            </div>
+            <div class="context-body" id="contextBody">
+                <div class="form-grid" style="margin-top: 0;">
+                    <div class="form-field span-4">
+                        <span class="field-label">참고 데이터 / 기존 답변 (검증 대상)</span>
+                        <textarea class="field-textarea" id="referenceData"
+                            placeholder="검증하고 싶은 기존 답변, 실험 데이터, 논문 내용 등을 붙여넣으세요.&#10;예: 'Claude가 NCM811에서 CNT 0.3%가 percolation threshold라고 답했는데, 이 값이 맞는지 확인하고 싶습니다.'"></textarea>
+                    </div>
+                    <div class="form-field span-2">
+                        <span class="field-label">양극 조건</span>
+                        <input class="field-input" id="cathodeInfo" 
+                            placeholder="예: NCM811 97%, CNT 0.5%, PVDF, 10mg/cm²">
+                    </div>
+                    <div class="form-field span-2">
+                        <span class="field-label">음극 조건</span>
+                        <input class="field-input" id="anodeInfo" 
+                            placeholder="예: Graphite+SiC 10%, CNT 0.1%, SBR/CMC">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Auto-matched Modules -->
+        <div id="matchedModulesSection" style="margin-top: 12px; display: none;">
+            <span class="field-label" style="margin-bottom: 6px; display: block;">📦 자동 매칭된 모듈 (클릭하여 토글)</span>
+            <div class="module-pills" id="modulePills"></div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-bar">
+            <button class="btn btn-primary" id="submitBtn" onclick="submitValidation()">
+                🚀 교차검증 시작
+            </button>
+            <button class="btn btn-secondary" onclick="clearForm()">
+                🗑️ 초기화
+            </button>
+            <button class="btn btn-secondary" onclick="previewPayload()">
+                👁️ 페이로드 미리보기
+            </button>
+        </div>
+    </div>
+
+    <!-- LOADING -->
+    <div class="loading-section" id="loadingSection">
+        <div class="loading-title">🔄 교차검증 진행 중...</div>
+        <div class="ai-progress">
+            <div class="ai-slot" id="slotClaude">
+                <div class="spinner" id="spinClaude"></div>
+                <div class="ai-name claude">Claude</div>
+                <div class="ai-status" id="statusClaude">대기</div>
+            </div>
+            <div class="ai-slot" id="slotGPT">
+                <div class="spinner" id="spinGPT"></div>
+                <div class="ai-name gpt">GPT</div>
+                <div class="ai-status" id="statusGPT">대기</div>
+            </div>
+            <div class="ai-slot" id="slotPerplexity">
+                <div class="spinner" id="spinPerplexity"></div>
+                <div class="ai-name perplexity">Perplexity</div>
+                <div class="ai-status" id="statusPerplexity">대기</div>
+            </div>
+        </div>
+        <div class="progress-bar-container">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="loading-timer" id="loadingTimer">경과: 0s</div>
+    </div>
+
+    <!-- RESULTS -->
+    <div class="results-section" id="resultsSection">
+        <!-- Consensus Banner -->
+        <div class="consensus-banner" id="consensusBanner">
+            <div class="consensus-row">
+                <div class="consensus-score score-high" id="consensusScore">—</div>
+                <div class="consensus-details">
+                    <div class="consensus-label">합의도 (Consensus Score)</div>
+                    <div class="consensus-text" id="consensusVerdict">검증 결과 대기 중</div>
+                    <div class="consensus-summary" id="consensusSummary"></div>
+                    <div class="consensus-meta" id="consensusMeta"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Response Cards -->
+        <div class="response-grid" id="responseGrid">
+            <!-- Dynamically populated -->
+        </div>
+
+        <!-- Divergence -->
+        <div class="divergence-card" id="divergenceCard" style="display:none;">
+            <div class="divergence-title">⚠️ 의견 불일치 영역</div>
+            <div id="divergenceList"></div>
+        </div>
+
+        <!-- Result Actions -->
+        <div class="action-bar" style="margin-top: 0;">
+            <button class="btn btn-secondary" onclick="copyResults()">📋 결과 복사</button>
+            <button class="btn btn-secondary" onclick="exportJSON()">💾 JSON 내보내기</button>
+        </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="history-section">
+        <div class="history-header">
+            <div class="section-header" style="margin-bottom:0;">
+                <span class="section-tag" style="background:rgba(245,158,11,0.15);color:var(--accent-amber);">LOG</span>
+                <span class="section-title">검증 히스토리</span>
+            </div>
+            <button class="btn-test" onclick="clearHistory()">🗑️ 초기화</button>
+        </div>
+        <div class="history-list" id="historyList">
+            <div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85em;">
+                아직 검증 기록이 없습니다
+            </div>
+        </div>
+    </div>
+
+    <!-- PAYLOAD PREVIEW MODAL -->
+    <div class="modal-overlay" id="payloadModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:1000;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-panel);border:1px solid var(--border-dim);border-radius:var(--radius-xl);padding:24px;max-width:700px;width:90%;max-height:80vh;overflow-y:auto;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                <span style="font-weight:700;">📦 n8n Webhook Payload</span>
+                <button class="btn-test" onclick="closePayloadModal()">✕ 닫기</button>
+            </div>
+            <pre id="payloadPreview" style="background:var(--bg-deep);padding:16px;border-radius:var(--radius-md);font-family:var(--font-mono);font-size:0.82em;line-height:1.6;overflow-x:auto;color:var(--accent-cyan);white-space:pre-wrap;"></pre>
+            <div style="margin-top:12px;display:flex;gap:8px;">
+                <button class="btn btn-secondary" style="flex:1;" onclick="copyPayload()">📋 복사</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// JARVIS-1 CROSS-VALIDATION ENGINE
+// ============================================================
+
+// === EMBEDDED MODULE DB (from Orchestrator v0.7) ===
+const MODULES_DB = [
+    { id: "sop_module_001", name: "PET 면저항(Rs) 측정 SOP", category: "SOP", keywords: ["Rs", "면저항", "PET", "4-probe", "sheet resistance", "코팅"] },
+    { id: "sop_module_002", name: "전극 건조 온도 프로토콜", category: "SOP", keywords: ["건조", "drying", "온도", "80", "120", "NMP", "crack", "migration"] },
+    { id: "sop_module_003", name: "슬러리 코팅 SOP", category: "SOP", keywords: ["코팅", "coating", "닥터블레이드", "슬롯다이", "wet thickness"] },
+    { id: "sop_module_005", name: "EIS 측정 프로토콜", category: "SOP", keywords: ["EIS", "임피던스", "Nyquist", "Rs", "Rct", "주파수"] },
+    { id: "sop_module_006", name: "Rate Capability 테스트", category: "SOP", keywords: ["rate", "C-rate", "율특성", "충방전", "cycle"] },
+    { id: "sop_module_007", name: "점도 측정 프로토콜", category: "SOP", keywords: ["점도", "viscosity", "rheology", "shear"] },
+    { id: "sop_module_008", name: "Percolation Curve 측정", category: "SOP", keywords: ["percolation", "전도도", "threshold", "φc"] },
+    { id: "sop_module_009v2", name: "Tortuosity 측정 SOP (Separator)", category: "SOP", keywords: ["tortuosity", "굴곡도", "τ", "대칭셀", "분리막", "separator", "MacMullin"] },
+    { id: "theory_module_001", name: "Percolation Theory 기초", category: "Theory", keywords: ["percolation", "threshold", "φc", "critical", "전도 네트워크", "aspect ratio"] },
+    { id: "theory_module_002v2", name: "EIS 기반 Tortuosity 분석", category: "Theory", keywords: ["tortuosity", "τ", "MacMullin", "이온전도", "Transmission Line"] },
+    { id: "theory_module_003", name: "Li+ 확산 이론", category: "Theory", keywords: ["diffusion", "확산", "Warburg", "GITT", "Li+"] },
+    { id: "theory_module_005", name: "CNT 분산 안정화 메커니즘", category: "Theory", keywords: ["분산", "dispersion", "zeta potential", "안정화"] },
+    { id: "theory_module_006", name: "Rate Capability 제한 인자", category: "Theory", keywords: ["rate", "율특성", "limiting factor", "IR drop"] },
+    { id: "material_module_001", name: "NCM811 물성", category: "Material", keywords: ["NCM811", "양극", "고니켈"] },
+    { id: "material_module_002", name: "SWCNT 분산액 물성", category: "Material", keywords: ["SWCNT", "분산액"] },
+];
+
+// === STATE ===
+let state = {
+    matchedModules: new Set(),
+    history: JSON.parse(localStorage.getItem('jarvis_cv_history') || '[]'),
+    lastResult: null,
+    timerInterval: null,
+    pollInterval: null,
+};
+
+// ============================================================
+// MODULE AUTO-MATCHING
+// ============================================================
+function autoMatchModules() {
+    const q = document.getElementById('question').value.toLowerCase();
+    if (q.length < 3) {
+        document.getElementById('matchedModulesSection').style.display = 'none';
+        return;
+    }
+
+    state.matchedModules = new Set();
+    MODULES_DB.forEach(m => {
+        const score = m.keywords.reduce((acc, kw) => {
+            return acc + (q.includes(kw.toLowerCase()) ? 1 : 0);
+        }, 0);
+        if (score > 0) state.matchedModules.add(m.id);
+    });
+
+    renderModulePills();
+}
+
+function renderModulePills() {
+    const section = document.getElementById('matchedModulesSection');
+    const container = document.getElementById('modulePills');
+    
+    if (state.matchedModules.size === 0) {
+        section.style.display = 'none';
+        return;
+    }
+
+    section.style.display = 'block';
+    container.innerHTML = MODULES_DB
+        .filter(m => state.matchedModules.has(m.id))
+        .map(m => `
+            <div class="module-pill active" onclick="toggleModulePill('${m.id}')">
+                <span class="pill-check">${state.matchedModules.has(m.id) ? '✓' : '○'}</span>
+                ${m.name}
+            </div>
+        `).join('');
+}
+
+function toggleModulePill(id) {
+    if (state.matchedModules.has(id)) state.matchedModules.delete(id);
+    else state.matchedModules.add(id);
+    renderModulePills();
+}
+
+// ============================================================
+// CONTEXT TOGGLE
+// ============================================================
+function toggleContext() {
+    const body = document.getElementById('contextBody');
+    const toggle = document.getElementById('contextToggle');
+    const isOpen = body.classList.toggle('open');
+    toggle.textContent = isOpen ? '▼ 접기' : '▶ 펼치기';
+}
+
+// ============================================================
+// BUILD PAYLOAD
+// ============================================================
+function buildPayload() {
+    const question = document.getElementById('question').value.trim();
+    if (!question) return null;
+
+    const payload = {
+        // === 메타 정보 ===
+        meta: {
+            source: 'JARVIS-1 Cross-Validator',
+            version: '1.0.0',
+            timestamp: new Date().toISOString(),
+            request_id: `cv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+        },
+        // === 분석 설정 ===
+        config: {
+            mode: document.getElementById('analysisMode').value,
+            domain: document.getElementById('domain').value,
+            cnt_type: document.getElementById('cntType').value,
+            confidence_threshold: document.getElementById('confidenceThreshold').value,
+            email_recipient: document.getElementById('emailRecipient').value.trim(),
+            send_email: !!document.getElementById('emailRecipient').value.trim()
+        },
+        // === 질문 ===
+        question: question,
+        // === 추가 컨텍스트 ===
+        context: {
+            reference_data: document.getElementById('referenceData')?.value.trim() || '',
+            cathode_info: document.getElementById('cathodeInfo')?.value.trim() || '',
+            anode_info: document.getElementById('anodeInfo')?.value.trim() || '',
+            matched_modules: Array.from(state.matchedModules)
+        },
+        // === AI별 프롬프트 지시 ===
+        ai_instructions: {
+            system_role: "You are a CNT/battery technology expert performing cross-validation analysis.",
+            output_format: {
+                answer: "핵심 답변 (한국어)",
+                confidence: "0-100 (정수)",
+                key_facts: ["검증된 사실 목록"],
+                caveats: ["주의사항/제한사항"],
+                sources: ["참고 문헌/근거"]
+            }
+        }
+    };
+
+    return payload;
+}
+
+// ============================================================
+// SUBMIT VALIDATION
+// ============================================================
+async function submitValidation() {
+    const webhookUrl = document.getElementById('webhookUrl').value.trim();
+    if (!webhookUrl) {
+        alert('⚠️ n8n Webhook URL을 입력해주세요.');
+        return;
+    }
+
+    const payload = buildPayload();
+    if (!payload) {
+        alert('⚠️ 질문을 입력해주세요.');
+        return;
+    }
+
+    // UI: Show loading
+    document.getElementById('submitBtn').disabled = true;
+    document.getElementById('loadingSection').classList.add('active');
+    document.getElementById('resultsSection').classList.remove('active');
+    setStatus('PROCESSING', 'var(--accent-amber)');
+
+    // Start timer
+    let elapsed = 0;
+    state.timerInterval = setInterval(() => {
+        elapsed++;
+        document.getElementById('loadingTimer').textContent = `경과: ${elapsed}s`;
+    }, 1000);
+
+    // Simulate progress stages
+    simulateProgress();
+
+    try {
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+
+        const result = await response.json();
+        clearInterval(state.timerInterval);
+        
+        // Complete all progress slots
+        completeAllSlots();
+        document.getElementById('progressBar').style.width = '100%';
+
+        // Small delay for visual effect
+        setTimeout(() => {
+            displayResults(result, payload);
+            document.getElementById('loadingSection').classList.remove('active');
+            setStatus('COMPLETE', 'var(--accent-green)');
+            document.getElementById('submitBtn').disabled = false;
+        }, 800);
+
+    } catch (err) {
+        clearInterval(state.timerInterval);
+        document.getElementById('loadingSection').classList.remove('active');
+        setStatus('ERROR', 'var(--accent-red)');
+        document.getElementById('submitBtn').disabled = false;
+        
+        alert(`❌ 요청 실패: ${err.message}\n\nWebhook URL과 n8n 워크플로우 상태를 확인해주세요.`);
+    }
+}
+
+function simulateProgress() {
+    const stages = [
+        { delay: 500, slot: 'Claude', status: '분석 중...' },
+        { delay: 1500, slot: 'GPT', status: '분석 중...' },
+        { delay: 2500, slot: 'Perplexity', status: '검색 중...' },
+    ];
+
+    stages.forEach(s => {
+        setTimeout(() => {
+            const el = document.getElementById(`slot${s.slot}`);
+            if (el) {
+                el.classList.add('running');
+                document.getElementById(`status${s.slot}`).textContent = s.status;
+            }
+        }, s.delay);
+    });
+
+    // Progress bar
+    let progress = 0;
+    const pInterval = setInterval(() => {
+        progress += Math.random() * 8;
+        if (progress > 85) { clearInterval(pInterval); return; }
+        document.getElementById('progressBar').style.width = `${progress}%`;
+    }, 500);
+}
+
+function completeAllSlots() {
+    ['Claude', 'GPT', 'Perplexity'].forEach(name => {
+        const slot = document.getElementById(`slot${name}`);
+        slot.classList.remove('running');
+        slot.classList.add('done');
+        const spinner = document.getElementById(`spin${name}`);
+        spinner.outerHTML = '<div class="check-mark">✓</div>';
+        document.getElementById(`status${name}`).textContent = '완료';
+    });
+}
+
+// ============================================================
+// DISPLAY RESULTS
+// ============================================================
+function displayResults(result, payload) {
+    state.lastResult = result;
+    const resultsEl = document.getElementById('resultsSection');
+    resultsEl.classList.add('active');
+
+    // Parse result - adapt to whatever structure n8n returns
+    const data = normalizeResult(result);
+
+    // === Consensus Banner ===
+    const scoreEl = document.getElementById('consensusScore');
+    const score = data.consensus_score;
+    scoreEl.textContent = score + '%';
+    scoreEl.className = 'consensus-score ' + 
+        (score >= 80 ? 'score-high' : score >= 50 ? 'score-mid' : 'score-low');
+
+    document.getElementById('consensusVerdict').textContent = data.consensus_verdict;
+    document.getElementById('consensusSummary').textContent = data.consensus_summary;
+
+    // Meta tags
+    const metaEl = document.getElementById('consensusMeta');
+    metaEl.innerHTML = `
+        <span class="meta-tag ${score >= 80 ? 'agree' : score >= 50 ? 'partial' : 'disagree'}">
+            합의도: ${score}%
+        </span>
+        <span class="meta-tag" style="background:rgba(59,130,246,0.1);color:var(--accent-blue);">
+            모드: ${payload.config.mode}
+        </span>
+        <span class="meta-tag" style="background:rgba(139,92,246,0.1);color:var(--accent-purple);">
+            ID: ${payload.meta.request_id.slice(-8)}
+        </span>
+    `;
+
+    // === AI Response Cards ===
+    const gridEl = document.getElementById('responseGrid');
+    const aiModels = [
+        { key: 'claude', name: 'Claude', dotClass: 'dot-claude', color: '#d97706' },
+        { key: 'gpt', name: 'GPT', dotClass: 'dot-gpt', color: '#10b981' },
+        { key: 'perplexity', name: 'Perplexity', dotClass: 'dot-perplexity', color: '#3b82f6' }
+    ];
+
+    gridEl.innerHTML = aiModels.map(ai => {
+        const resp = data.responses[ai.key] || {};
+        const confidence = resp.confidence || 0;
+        const confClass = confidence >= 80 ? 'agree' : confidence >= 50 ? 'partial' : 'disagree';
+        
+        return `
+            <div class="response-card">
+                <div class="card-header">
+                    <div class="card-ai-name">
+                        <div class="card-ai-dot ${ai.dotClass}"></div>
+                        ${ai.name}
+                    </div>
+                    <span class="card-confidence meta-tag ${confClass}">
+                        신뢰도 ${confidence}%
+                    </span>
+                </div>
+                <div class="card-body">
+                    ${formatResponseHTML(resp)}
+                </div>
+                <div class="card-footer">
+                    <span class="card-tokens">${resp.model || ai.key}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // === Divergence ===
+    if (data.divergences && data.divergences.length > 0) {
+        const divCard = document.getElementById('divergenceCard');
+        divCard.style.display = 'block';
+        document.getElementById('divergenceList').innerHTML = data.divergences.map(d => `
+            <div class="divergence-item">
+                <div class="topic">${d.topic}</div>
+                <div class="detail">${d.detail}</div>
+            </div>
+        `).join('');
+    } else {
+        document.getElementById('divergenceCard').style.display = 'none';
+    }
+
+    // Save to history
+    saveToHistory(payload, data);
+    
+    resultsEl.scrollIntoView({ behavior: 'smooth' });
+}
+
+function formatResponseHTML(resp) {
+    if (!resp || !resp.answer) return '<em style="color:var(--text-muted);">응답 없음</em>';
+
+    let html = `<div style="margin-bottom:10px;line-height:1.8;">${resp.answer.replace(/\n/g, '<br>')}</div>`;
+
+    if (resp.key_facts && resp.key_facts.length > 0) {
+        html += `<div style="margin-top:10px;padding:8px 12px;background:rgba(16,185,129,0.08);border-radius:6px;border-left:3px solid var(--accent-green);">
+            <div style="font-size:0.78em;font-weight:700;color:var(--accent-green);margin-bottom:4px;">✓ 핵심 사실</div>
+            ${resp.key_facts.map(f => `<div style="font-size:0.82em;padding:2px 0;">• ${f}</div>`).join('')}
+        </div>`;
+    }
+
+    if (resp.caveats && resp.caveats.length > 0) {
+        html += `<div style="margin-top:8px;padding:8px 12px;background:rgba(245,158,11,0.08);border-radius:6px;border-left:3px solid var(--accent-amber);">
+            <div style="font-size:0.78em;font-weight:700;color:var(--accent-amber);margin-bottom:4px;">⚠ 주의사항</div>
+            ${resp.caveats.map(c => `<div style="font-size:0.82em;padding:2px 0;">• ${c}</div>`).join('')}
+        </div>`;
+    }
+
+    if (resp.sources && resp.sources.length > 0) {
+        html += `<div style="margin-top:8px;font-size:0.75em;color:var(--text-muted);">
+            📚 ${resp.sources.join(' | ')}
+        </div>`;
+    }
+
+    return html;
+}
+
+// Normalize various n8n response formats into our standard structure
+function normalizeResult(raw) {
+    // If already in our format
+    if (raw.consensus_score !== undefined && raw.responses) return raw;
+
+    // Try to extract from common n8n output patterns
+    // Pattern 1: Direct object with ai names
+    if (raw.claude && raw.gpt && raw.perplexity) {
+        return {
+            consensus_score: raw.consensus_score || calculateConsensus(raw),
+            consensus_verdict: raw.consensus_verdict || '교차검증 완료',
+            consensus_summary: raw.consensus_summary || '',
+            responses: {
+                claude: normalizeAIResponse(raw.claude),
+                gpt: normalizeAIResponse(raw.gpt),
+                perplexity: normalizeAIResponse(raw.perplexity)
+            },
+            divergences: raw.divergences || []
+        };
+    }
+
+    // Pattern 2: Array of results
+    if (Array.isArray(raw)) {
+        const responses = {};
+        ['claude', 'gpt', 'perplexity'].forEach((name, i) => {
+            if (raw[i]) responses[name] = normalizeAIResponse(raw[i]);
+        });
+        return {
+            consensus_score: calculateConsensus(responses),
+            consensus_verdict: '교차검증 완료',
+            consensus_summary: '',
+            responses,
+            divergences: []
+        };
+    }
+
+    // Pattern 3: Nested in output/result key
+    const inner = raw.output || raw.result || raw.data || raw;
+    if (inner !== raw) return normalizeResult(inner);
+
+    // Fallback: treat entire response as single result
+    return {
+        consensus_score: 50,
+        consensus_verdict: '⚠️ 응답 형식 확인 필요',
+        consensus_summary: 'n8n 워크플로우 응답 구조를 확인해주세요.',
+        responses: {
+            claude: { answer: JSON.stringify(raw, null, 2), confidence: 0 },
+            gpt: { answer: '—', confidence: 0 },
+            perplexity: { answer: '—', confidence: 0 }
+        },
+        divergences: []
+    };
+}
+
+function normalizeAIResponse(resp) {
+    if (typeof resp === 'string') return { answer: resp, confidence: 50, key_facts: [], caveats: [], sources: [] };
+    return {
+        answer: resp.answer || resp.text || resp.content || resp.response || JSON.stringify(resp),
+        confidence: resp.confidence || 50,
+        key_facts: resp.key_facts || resp.facts || [],
+        caveats: resp.caveats || resp.warnings || [],
+        sources: resp.sources || resp.references || [],
+        model: resp.model || ''
+    };
+}
+
+function calculateConsensus(responses) {
+    const confidences = Object.values(responses)
+        .map(r => r?.confidence || 0)
+        .filter(c => c > 0);
+    if (confidences.length === 0) return 50;
+    return Math.round(confidences.reduce((a, b) => a + b, 0) / confidences.length);
+}
+
+// ============================================================
+// HISTORY
+// ============================================================
+function saveToHistory(payload, data) {
+    const entry = {
+        id: payload.meta.request_id,
+        timestamp: payload.meta.timestamp,
+        question: payload.question.slice(0, 80),
+        score: data.consensus_score,
+        verdict: data.consensus_verdict,
+        data: data
+    };
+    
+    state.history.unshift(entry);
+    if (state.history.length > 50) state.history = state.history.slice(0, 50);
+    localStorage.setItem('jarvis_cv_history', JSON.stringify(state.history));
+    renderHistory();
+}
+
+function renderHistory() {
+    const list = document.getElementById('historyList');
+    if (state.history.length === 0) {
+        list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);font-size:0.85em;">아직 검증 기록이 없습니다</div>';
+        return;
+    }
+
+    list.innerHTML = state.history.map(h => {
+        const scoreClass = h.score >= 80 ? 'score-high' : h.score >= 50 ? 'score-mid' : 'score-low';
+        const time = new Date(h.timestamp).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return `
+            <div class="history-item" onclick="loadHistoryItem('${h.id}')">
+                <div class="history-score ${scoreClass}">${h.score}%</div>
+                <div class="history-info">
+                    <div class="history-question">${h.question}</div>
+                    <div class="history-time">${time}</div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function loadHistoryItem(id) {
+    const item = state.history.find(h => h.id === id);
+    if (!item) return;
+    displayResults(item.data, { config: { mode: 'history' }, meta: { request_id: id } });
+}
+
+function clearHistory() {
+    if (!confirm('검증 히스토리를 모두 삭제하시겠습니까?')) return;
+    state.history = [];
+    localStorage.removeItem('jarvis_cv_history');
+    renderHistory();
+}
+
+// ============================================================
+// UTILITIES
+// ============================================================
+function setStatus(text, color) {
+    document.getElementById('statusText').textContent = text;
+    document.getElementById('statusDot').style.background = color;
+    document.getElementById('statusDot').style.boxShadow = `0 0 8px ${color}`;
+}
+
+function testWebhook() {
+    const url = document.getElementById('webhookUrl').value.trim();
+    if (!url) { alert('Webhook URL을 입력해주세요.'); return; }
+    
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ test: true, source: 'JARVIS-1', timestamp: new Date().toISOString() })
+    })
+    .then(r => {
+        if (r.ok) alert('✅ 연결 성공! n8n 워크플로우가 응답했습니다.');
+        else alert(`⚠️ HTTP ${r.status}: 워크플로우를 확인해주세요.`);
+    })
+    .catch(e => alert(`❌ 연결 실패: ${e.message}`));
+}
+
+function previewPayload() {
+    const payload = buildPayload();
+    if (!payload) { alert('질문을 입력해주세요.'); return; }
+    document.getElementById('payloadPreview').textContent = JSON.stringify(payload, null, 2);
+    document.getElementById('payloadModal').style.display = 'flex';
+}
+
+function closePayloadModal() {
+    document.getElementById('payloadModal').style.display = 'none';
+}
+
+function copyPayload() {
+    const text = document.getElementById('payloadPreview').textContent;
+    navigator.clipboard.writeText(text).then(() => alert('✅ 복사 완료!'));
+}
+
+function copyResults() {
+    if (!state.lastResult) return;
+    const data = normalizeResult(state.lastResult);
+    let text = `JARVIS-1 교차검증 결과\n${'='.repeat(40)}\n`;
+    text += `합의도: ${data.consensus_score}%\n`;
+    text += `판정: ${data.consensus_verdict}\n\n`;
+    
+    ['claude', 'gpt', 'perplexity'].forEach(ai => {
+        const r = data.responses[ai];
+        if (r) {
+            text += `[${ai.toUpperCase()}] (신뢰도: ${r.confidence}%)\n`;
+            text += `${r.answer}\n\n`;
+        }
+    });
+
+    navigator.clipboard.writeText(text).then(() => alert('✅ 결과 복사 완료!'));
+}
+
+function exportJSON() {
+    if (!state.lastResult) return;
+    const blob = new Blob([JSON.stringify(state.lastResult, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `jarvis_cv_${Date.now()}.json`;
+    a.click();
+}
+
+function clearForm() {
+    if (!confirm('입력 내용을 초기화하시겠습니까?')) return;
+    document.getElementById('question').value = '';
+    document.getElementById('referenceData').value = '';
+    document.getElementById('cathodeInfo').value = '';
+    document.getElementById('anodeInfo').value = '';
+    document.getElementById('matchedModulesSection').style.display = 'none';
+    document.getElementById('resultsSection').classList.remove('active');
+    state.matchedModules.clear();
+    setStatus('READY', 'var(--accent-green)');
+}
+
+// === INIT ===
+renderHistory();
+
+// Restore webhook URL from localStorage
+const savedUrl = localStorage.getItem('jarvis_webhook_url');
+if (savedUrl) document.getElementById('webhookUrl').value = savedUrl;
+
+const savedEmail = localStorage.getItem('jarvis_email');
+if (savedEmail) document.getElementById('emailRecipient').value = savedEmail;
+
+// Auto-save settings
+document.getElementById('webhookUrl').addEventListener('change', function() {
+    localStorage.setItem('jarvis_webhook_url', this.value);
+});
+document.getElementById('emailRecipient').addEventListener('change', function() {
+    localStorage.setItem('jarvis_email', this.value);
+});
+</script>
+</body>
+</html>
